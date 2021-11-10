@@ -1,64 +1,95 @@
-import mpa from "vite-plugin-mpa";
-import vue from "@vitejs/plugin-vue";
-import vitePluginImp from "vite-plugin-imp";
-import { viteVConsole } from "vite-plugin-vconsole";
-import { resolve } from "path";
+import { loadEnv } from 'vite';
+import mpa from 'vite-plugin-mpa';
+import vue from '@vitejs/plugin-vue';
+import legacy from '@vitejs/plugin-legacy';
+import vueJsx from '@vitejs/plugin-vue-jsx';
+import Components from 'unplugin-vue-components/vite';
+import { VantResolver } from 'unplugin-vue-components/resolvers';
+// import { viteVConsole } from 'vite-plugin-vconsole';
+import compress from 'vite-plugin-compress';
+import styleImport from 'vite-plugin-style-import';
+import { resolve } from 'path';
 
-// https://vitejs.dev/config/
-export default ({ mode }) => {
+const CWD = process.cwd();
+
+export default ({ command, mode }) => {
+  const isBuild = command === 'build';
+
+  const { VITE_BASE_URL, VITE_DROP_CONSOLE } = loadEnv(mode, CWD);
+
   let plugins = [
     vue(),
-    vitePluginImp({
-      libList: [
+    vueJsx({
+      // options are passed on to @vue/babel-plugin-jsx
+    }),
+    styleImport({
+      libs: [
         {
-          libName: "vant",
-          style(name) {
-            if (/CompWithoutStyleFile/i.test(name)) {
-              // This will not import any style file
-              return false;
-            }
-            return `vant/es/${name}/style/index.js`;
-          },
+          libraryName: 'vant',
+          esModule: true,
+          resolveStyle: (name) => `vant/es/${name}/style`,
         },
       ],
     }),
+    Components({
+      resolvers: [VantResolver()],
+    }),
     mpa({
-      open: "",
-      scanDir: "src/pages",
-      scanFile: "main.js",
-      filename: "index.html",
+      open: '',
+      scanDir: 'src/pages',
+      scanFile: 'index.js',
+      filename: 'index.html',
     }),
-    viteVConsole({
-      entry: resolve("src/app.js"),
-      localEnabled: true,
-      enabled: true,
-    }),
+    // viteVConsole({
+    //   entry: resolve('src/app.js'),
+    //   localEnabled: true,
+    //   enabled: true,
+    // }),
   ];
 
-  if (mode === "release") {
-    plugins.pop();
+  if (isBuild) {
+    // plugins.pop();
+    plugins.push(compress());
+    plugins.push(
+      legacy({
+        targets: ['defaults', 'not IE 11'],
+      })
+    );
   }
 
   return {
+    base: VITE_BASE_URL,
     server: {
+      host: '0.0.0.0',
       port: 8888,
       proxy: {
-        "/api": {
-          // 免费的在线REST API
-          target: "http://jsonplaceholder.typicode.com",
+        '/api': {
+          target: 'http://jsonplaceholder.typicode.com',
           changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/api/, ""),
+          rewrite: (path) => path.replace(/^\/api/, ''),
         },
       },
     },
     resolve: {
-      alias: {
-        "@": resolve(__dirname, "./src"),
-      },
-    },
-    optimizeDeps: {
-      entries: "vant/es/**/*.js",
+      alias: [
+        {
+          find: '@',
+          replacement: resolve(__dirname, './src'),
+        },
+      ],
     },
     plugins,
+    optimizeDeps: {
+      include: ['vant'],
+      exclude: ['vue-demi'],
+    },
+    build: {
+      terserOptions: {
+        compress: {
+          keep_infinity: true,
+          drop_console: VITE_DROP_CONSOLE,
+        },
+      },
+    },
   };
 };

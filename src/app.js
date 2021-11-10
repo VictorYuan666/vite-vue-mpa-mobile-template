@@ -1,2 +1,2 @@
-import 'inobounce'
-import 'amfe-flexible'
+import 'inobounce';
+import 'amfe-flexible';
