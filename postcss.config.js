@@ -1,5 +1,7 @@
 module.exports = {
   plugins: {
+    tailwindcss: {},
+    autoprefixer: {},
     'postcss-pxtorem': {
       unitPrecision: 5,
       selectorBlackList: ['.van', '.norem'], //过滤的类名 榜单
